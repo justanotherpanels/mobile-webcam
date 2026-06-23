@@ -16,10 +16,13 @@ export const useWebRTC = ({ roomId }: UseWebRTCProps) => {
   useEffect(() => {
     if (!roomId) return;
 
-    const socketUrl = process.env.NEXT_PUBLIC_SOCKET_URL || "http://localhost:3001";
-    // Try WebSocket first, fall back to polling if needed
+    // Hardcode Railway backend URL to guarantee it connects to the right server
+    const socketUrl = "https://mobile-webcam-production.up.railway.app";
+    
+    // Always start with polling, then upgrade to WebSocket. 
+    // Railway proxy drops direct WebSocket handshakes without HTTP first.
     const socket = io(socketUrl, {
-      transports: ["websocket", "polling"],
+      transports: ["polling", "websocket"],
       reconnection: true,
       reconnectionDelay: 1000,
       reconnectionAttempts: 10,
