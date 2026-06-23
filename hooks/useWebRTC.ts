@@ -23,6 +23,7 @@ export const useWebRTC = ({ roomId }: UseWebRTCProps) => {
     // Railway proxy drops direct WebSocket handshakes without HTTP first.
     const socket = io(socketUrl, {
       transports: ["polling", "websocket"],
+      upgrade: true,
       reconnection: true,
       reconnectionDelay: 1000,
       reconnectionAttempts: 10,
