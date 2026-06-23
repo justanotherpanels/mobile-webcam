@@ -54,7 +54,7 @@ export const useWebRTC = ({ roomId }: UseWebRTCProps) => {
 
     socket.on("user-joined", async (userId: string) => {
       // Prevent glare by deciding who initiates the offer
-      const isInitiator = socket.id > userId;
+      const isInitiator = (socket.id || "") > userId;
 
       let pc = peerConnectionsRef.current.get(userId);
       if (!pc) {
