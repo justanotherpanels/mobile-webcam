@@ -7,14 +7,27 @@ const cors = require("cors");
 const app = express();
 app.use(cors());
 
+// Health check endpoint — Railway pings this to confirm the app is alive
+app.get("/", (req, res) => {
+  res.json({ status: "ok", uptime: process.uptime() });
+});
+app.get("/health", (req, res) => {
+  res.json({ status: "ok", uptime: process.uptime() });
+});
+
 const server = http.createServer(app);
 
-// CORS: Allow all origins to prevent CORS issues
+// Socket.IO with explicit WebSocket + polling support
 const io = new Server(server, {
   cors: {
     origin: "*",
-    methods: ["GET", "POST"]
+    methods: ["GET", "POST"],
   },
+  transports: ["websocket", "polling"],
+  allowUpgrades: true,
+  pingTimeout: 60000,
+  pingInterval: 25000,
+  allowEIO3: true,
 });
 
 // Debug log
