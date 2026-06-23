@@ -16,7 +16,8 @@ export const useWebRTC = ({ roomId }: UseWebRTCProps) => {
   useEffect(() => {
     if (!roomId) return;
 
-    const socket = io("http://localhost:3001");
+    const socketUrl = process.env.NEXT_PUBLIC_SOCKET_URL || "http://localhost:3001";
+    const socket = io(socketUrl);
     socketRef.current = socket;
 
     socket.on("connect", () => {
