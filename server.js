@@ -6,8 +6,7 @@ const cors = require("cors");
 
 const app = express();
 app.use(cors({
-  origin: true,
-  credentials: true
+  origin: '*'
 }));
 
 // Health check endpoint — Railway pings this to confirm the app is alive
@@ -22,9 +21,8 @@ const server = http.createServer(app);
 
 const io = new Server(server, {
   cors: {
-    origin: true,
-    methods: ["GET", "POST", "OPTIONS"],
-    credentials: true,
+    origin: "*",
+    methods: ["GET", "POST", "OPTIONS"]
   },
   transports: ["websocket", "polling"],
   allowUpgrades: true,

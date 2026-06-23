@@ -32,7 +32,6 @@ export const useWebRTC = ({ roomId }: UseWebRTCProps) => {
       reconnectionDelay: 1000,
       reconnectionAttempts: 10,
       timeout: 20000,
-      withCredentials: true,
     });
     socketRef.current = socket;
     const peerConnections = peerConnectionsRef.current;
