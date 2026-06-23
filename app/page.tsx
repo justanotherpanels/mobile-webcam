@@ -139,6 +139,14 @@ export default function Home() {
     }
   };
 
+  const copyOBSLink = () => {
+    if (roomId) {
+      const link = `${window.location.origin}/view/${roomId}`;
+      navigator.clipboard.writeText(link);
+      setCopied('OBS View link copied!');
+    }
+  };
+
   const handleStartStreaming = () => {
     if (!rtmpUrl) return alert("RTMP URL is required");
     if (!stream) return alert("Camera not started");
@@ -183,46 +191,71 @@ export default function Home() {
 
   if (!joined) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-purple-900 to-gray-900 flex items-center justify-center p-4">
-        <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-8 max-w-md w-full border border-white/20">
-          <div className="text-center mb-8">
-            <h1 className="text-4xl font-bold text-white mb-2">VDO.Ninja</h1>
-            <p className="text-gray-300">Peer-to-peer video conferencing</p>
+      <div className="relative min-h-screen bg-[#0a0a0a] flex items-center justify-center p-4 sm:p-8 overflow-hidden font-sans">
+        {/* Background Effects */}
+        <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-purple-600/30 rounded-full blur-[128px] mix-blend-screen pointer-events-none" />
+        <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-indigo-600/20 rounded-full blur-[128px] mix-blend-screen pointer-events-none" />
+        
+        <div className="relative z-10 w-full max-w-md">
+          {/* Glass Card */}
+          <div className="bg-white/[0.03] backdrop-blur-2xl rounded-3xl p-8 sm:p-10 border border-white/10 shadow-[0_8px_32px_0_rgba(0,0,0,0.36)]">
+            
+            {/* Header Section */}
+            <div className="text-center mb-10">
+              <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-tr from-indigo-500 to-purple-500 mb-6 shadow-lg shadow-purple-500/30">
+                <Video size={32} className="text-white" />
+              </div>
+              <h1 className="text-4xl sm:text-5xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-white to-gray-400 mb-3 tracking-tight">
+                WebCam Mobile
+              </h1>
+              <p className="text-sm sm:text-base text-gray-400 font-medium">
+                Camera for IRL stream Access
+              </p>
+            </div>
+            
+            {/* Room ID Section */}
+            <div className="mb-8">
+              <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3 ml-1">
+                Share Room ID
+              </label>
+              <div className="relative group">
+                <input
+                  type="text"
+                  value={roomId}
+                  readOnly
+                  className="w-full bg-black/40 border border-white/10 rounded-xl pl-5 pr-14 py-4 text-white font-mono text-sm focus:outline-none focus:border-purple-500/50 transition-colors"
+                />
+                <button
+                  onClick={copyRoomLink}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 p-2.5 bg-white/5 hover:bg-white/10 rounded-lg text-gray-300 hover:text-white transition-all cursor-pointer group-hover:bg-purple-500/20 group-hover:text-purple-300"
+                  title="Copy room link"
+                >
+                  <Copy size={18} />
+                </button>
+              </div>
+            </div>
+
+            {/* Action Button */}
+            <button
+              onClick={() => startCamera(facingMode)}
+              className="group relative w-full bg-white text-black font-semibold py-4 px-6 rounded-xl transition-all hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center gap-3 overflow-hidden cursor-pointer"
+            >
+              <div className="absolute inset-0 bg-gradient-to-r from-purple-100 to-indigo-100 opacity-0 group-hover:opacity-100 transition-opacity" />
+              <Users size={20} className="relative z-10" />
+              <span className="relative z-10 text-lg">Join Room Now</span>
+            </button>
           </div>
           
-          <div className="mb-6">
-            <label className="block text-sm font-medium text-gray-300 mb-2">
-              Room ID
-            </label>
-            <div className="flex gap-2">
-              <input
-                type="text"
-                value={roomId}
-                readOnly
-                className="flex-1 bg-white/10 border border-white/20 rounded-lg px-4 py-2 text-white"
-              />
-              <button
-                onClick={copyRoomLink}
-                className="p-2 bg-purple-600 hover:bg-purple-700 rounded-lg text-white transition-colors cursor-pointer"
-                title="Copy room link"
-              >
-                <Copy size={20} />
-              </button>
-            </div>
+          {/* Footer branding */}
+          <div className="mt-8 text-center text-xs text-gray-600 font-medium">
+            Secured by WebRTC & Socket.io
           </div>
-
-          <button
-            onClick={() => startCamera(facingMode)}
-            className="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white font-semibold py-3 px-6 rounded-lg transition-all flex items-center justify-center gap-2 cursor-pointer"
-          >
-            <Users size={20} />
-            Join Room
-          </button>
         </div>
 
         {copied && (
-          <div className="fixed top-20 left-1/2 -translate-x-1/2 bg-green-600 text-white px-4 py-2 rounded-lg z-50 animate-pulse">
-            {copied}
+          <div className="fixed top-10 left-1/2 -translate-x-1/2 bg-zinc-800 border border-white/10 text-white px-6 py-3 rounded-full z-50 animate-in slide-in-from-top-4 fade-in duration-300 shadow-2xl flex items-center gap-2">
+            <div className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
+            <span className="text-sm font-medium">{copied}</span>
           </div>
         )}
       </div>
@@ -278,8 +311,8 @@ export default function Home() {
             >
               <div className="flex items-center gap-2 text-xs sm:text-sm">
                 <Share2 size={14} />
-                <span className="hidden sm:inline">Room Link</span>
-                <span className="sm:hidden">Room</span>
+                <span className="hidden xl:inline">Room Link</span>
+                <span className="xl:hidden">Room</span>
               </div>
             </button>
             <button
@@ -289,8 +322,19 @@ export default function Home() {
             >
               <div className="flex items-center gap-2 text-xs sm:text-sm">
                 <Copy size={14} />
-                <span className="hidden sm:inline">Camera Link</span>
-                <span className="sm:hidden">Camera</span>
+                <span className="hidden xl:inline">Camera Link</span>
+                <span className="xl:hidden">Camera</span>
+              </div>
+            </button>
+            <button
+              onClick={copyOBSLink}
+              className="flex-1 sm:flex-none bg-indigo-600 hover:bg-indigo-700 py-2 sm:px-4 sm:py-2 rounded-xl text-white transition cursor-pointer border border-indigo-500/50 flex justify-center"
+              title="Copy OBS Link"
+            >
+              <div className="flex items-center gap-2 text-xs sm:text-sm">
+                <Copy size={14} />
+                <span className="hidden xl:inline">OBS Link</span>
+                <span className="xl:hidden">OBS</span>
               </div>
             </button>
             <button 
