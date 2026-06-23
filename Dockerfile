@@ -13,4 +13,5 @@ RUN npm ci --omit=dev
 # Copy source code
 COPY server.js ./
 
+EXPOSE 8080
 CMD ["node", "server.js"]
