@@ -40,12 +40,30 @@ Di Render dashboard, buka project kamu → **Environment**:
 3. Klik **Save**
 4. Redeploy project Vercel kamu (Deployments → ... → Redeploy)
 
-### 4. Testing di OBS
-1. Buka link camera kamu di browser terlebih dahulu untuk izin kamera
-2. Buka OBS → Add **Browser Source**
-3. Paste URL camera kamu (contoh: `https://vdo-ninja.vercel.app/camera/abc123`)
-4. Set ukuran sesuai kebutuhan
-5. Selesai!
+### 4. Testing (Step-by-Step)
+1. **Buka link di browser TERLEBIH DAHULU** (contoh: `https://vdo-ninja.vercel.app/camera/abc123`)
+   - Klik **Allow** ketika browser meminta izin kamera
+   - Pastikan kamu melihat video kamu di browser
+   
+2. **Buka OBS**
+   - Tambahkan **Browser Source**
+   - Paste URL camera kamu
+   - Set ukuran (contoh: 1920x1080)
+   - Centang **Refresh browser when scene becomes active**
+   - Klik **OK**
+   
+3. **Jika tidak muncul**:
+   - Klik kanan Browser Source di OBS → **Interact**
+   - Di jendela Interact, klik **Allow** untuk izin kamera (jika muncul)
+   - Atau, buka OBS → Settings → Advanced → Set "Browser Source Hardware Acceleration" ke **Off**
+
+### 5. Debug Checklist
+Pastikan semua hal ini sudah di-setup:
+- ✅ Socket.io server berjalan di Railway (cekt logs Railway)
+- ✅ Env var `NEXT_PUBLIC_SOCKET_URL` di Vercel di-set dengan URL Railway
+- ✅ Env var `ALLOWED_ORIGIN` di Railway di-set dengan URL Vercel
+- ✅ Vercel sudah di-redeploy setelah set env var
+- ✅ Kamu sudah buka link di browser dan allow kamera
 
 ---
 

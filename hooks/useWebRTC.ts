@@ -155,6 +155,42 @@ export const useWebRTC = ({ roomId }: UseWebRTCProps) => {
     }
   };
 
+  const startRtmp = (rtmpUrl: string) => {
+    if (socketRef.current) {
+      socketRef.current.emit("start-rtmp", { rtmpUrl });
+    }
+  };
+
+  const stopRtmp = () => {
+    if (socketRef.current) {
+      socketRef.current.emit("stop-rtmp");
+    }
+  };
+
+  const sendRtmpChunk = (chunk: Blob) => {
+    if (socketRef.current) {
+      socketRef.current.emit("stream-chunk", chunk);
+    }
+  };
+
+  // Listen for RTMP events from server
+  useEffect(() => {
+    if (!socketRef.current) return;
+    
+    const handleRtmpError = (err: string) => {
+      console.error("RTMP Error:", err);
+      alert(`RTMP Streaming Error: ${err}`);
+    };
+
+    socketRef.current.on("rtmp-error", handleRtmpError);
+
+    return () => {
+      if (socketRef.current) {
+        socketRef.current.off("rtmp-error", handleRtmpError);
+      }
+    };
+  }, [isConnected]);
+
   return {
     localStreamRef,
     remoteStreams,
@@ -163,5 +199,8 @@ export const useWebRTC = ({ roomId }: UseWebRTCProps) => {
     stopLocalStream,
     toggleVideo,
     toggleAudio,
+    startRtmp,
+    stopRtmp,
+    sendRtmpChunk,
   };
 };
