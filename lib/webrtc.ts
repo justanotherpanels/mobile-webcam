@@ -10,13 +10,29 @@ export const getIceServers = (): RTCIceServer[] => {
     }
   }
 
-  // Default fallback (Google STUN) if no env var is provided
+  // Default fallback (Google STUN + Metered OpenRelay Free TURN) 
+  // This ensures connectivity even behind strict NAT firewalls
   return [
     {
       urls: "stun:stun.l.google.com:19302",
     },
     {
       urls: "stun:stun1.l.google.com:19302",
+    },
+    {
+      urls: "turn:openrelay.metered.ca:80",
+      username: "openrelayproject",
+      credential: "openrelayproject",
+    },
+    {
+      urls: "turn:openrelay.metered.ca:443",
+      username: "openrelayproject",
+      credential: "openrelayproject",
+    },
+    {
+      urls: "turn:openrelay.metered.ca:443?transport=tcp",
+      username: "openrelayproject",
+      credential: "openrelayproject",
     }
   ];
 };
