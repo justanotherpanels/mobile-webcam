@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import { io, Socket } from "socket.io-client";
 import { createPeerConnection } from "@/lib/webrtc";
 
@@ -6,13 +6,77 @@ interface UseWebRTCProps {
   roomId: string;
 }
 
+export type RtmpStatus = "idle" | "connecting" | "streaming" | "stopped" | "error";
+
 export const useWebRTC = ({ roomId }: UseWebRTCProps) => {
   const socketRef = useRef<Socket | null>(null);
   const peerConnectionsRef = useRef<Map<string, RTCPeerConnection>>(new Map());
+  const iceRestartTimersRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
   const localStreamRef = useRef<MediaStream | null>(null);
   const [remoteStreams, setRemoteStreams] = useState<Map<string, MediaStream>>(new Map());
   const [isConnected, setIsConnected] = useState(false);
   const [connectionError, setConnectionError] = useState<string | null>(null);
+  const [rtmpStatus, setRtmpStatus] = useState<RtmpStatus>("idle");
+  const [rtmpError, setRtmpError] = useState<string | null>(null);
+
+  const performIceRestart = useCallback(async (userId: string, pc: RTCPeerConnection) => {
+    const socket = socketRef.current;
+    if (!socket || pc.signalingState === "closed") return;
+
+    try {
+      const offer = await pc.createOffer({ iceRestart: true });
+      await pc.setLocalDescription(offer);
+      socket.emit("offer", { targetId: userId, offer });
+    } catch (e) {
+      console.error("ICE restart failed:", e);
+    }
+  }, []);
+
+  const handleIceConnectionStateChange = useCallback(
+    (userId: string, pc: RTCPeerConnection, state: RTCIceConnectionState) => {
+      const existingTimer = iceRestartTimersRef.current.get(userId);
+      if (existingTimer) {
+        clearTimeout(existingTimer);
+        iceRestartTimersRef.current.delete(userId);
+      }
+
+      if (state === "failed") {
+        performIceRestart(userId, pc);
+      } else if (state === "disconnected") {
+        const timer = setTimeout(() => {
+          if (
+            pc.iceConnectionState === "disconnected" ||
+            pc.iceConnectionState === "failed"
+          ) {
+            performIceRestart(userId, pc);
+          }
+        }, 3000);
+        iceRestartTimersRef.current.set(userId, timer);
+      }
+    },
+    [performIceRestart]
+  );
+
+  const makePeerConnection = useCallback(
+    (userId: string, socket: Socket) => {
+      let pc: RTCPeerConnection;
+      pc = createPeerConnection(
+        (candidate) => {
+          if (candidate) {
+            socket.emit("ice-candidate", { targetId: userId, candidate });
+          }
+        },
+        (event) => {
+          const stream = event.streams[0];
+          setRemoteStreams((prev) => new Map(prev).set(userId, stream));
+        },
+        (state) => handleIceConnectionStateChange(userId, pc, state)
+      );
+      peerConnectionsRef.current.set(userId, pc);
+      return pc;
+    },
+    [handleIceConnectionStateChange]
+  );
 
   useEffect(() => {
     if (!roomId) return;
@@ -20,11 +84,9 @@ export const useWebRTC = ({ roomId }: UseWebRTCProps) => {
     const socketUrl =
       process.env.NEXT_PUBLIC_SOCKET_URL ||
       (window.location.hostname === "localhost"
-        ? "http://localhost:3001"
+        ? "http://localhost:8080"
         : "https://mobile-webcam-production.up.railway.app");
     
-    // Always start with polling, then upgrade to WebSocket. 
-    // Railway proxy drops direct WebSocket handshakes without HTTP first.
     const socket = io(socketUrl, {
       transports: ["polling", "websocket"],
       upgrade: true,
@@ -51,24 +113,26 @@ export const useWebRTC = ({ roomId }: UseWebRTCProps) => {
       setConnectionError(error.message || "Gagal terhubung ke signaling server");
     });
 
+    socket.on("rtmp-started", () => {
+      setRtmpStatus("streaming");
+      setRtmpError(null);
+    });
+
+    socket.on("rtmp-stopped", () => {
+      setRtmpStatus("stopped");
+    });
+
+    socket.on("rtmp-error", (err: string) => {
+      setRtmpStatus("error");
+      setRtmpError(err);
+    });
+
     socket.on("user-joined", async (userId: string) => {
-      // Prevent glare by deciding who initiates the offer
       const isInitiator = (socket.id || "") > userId;
 
       let pc = peerConnectionsRef.current.get(userId);
       if (!pc) {
-        pc = createPeerConnection(
-          (candidate) => {
-            if (candidate) {
-              socket.emit("ice-candidate", { targetId: userId, candidate });
-            }
-          },
-          (event) => {
-            const stream = event.streams[0];
-            setRemoteStreams((prev) => new Map(prev).set(userId, stream));
-          }
-        );
-        peerConnectionsRef.current.set(userId, pc);
+        pc = makePeerConnection(userId, socket);
       }
 
       if (isInitiator) {
@@ -95,19 +159,7 @@ export const useWebRTC = ({ roomId }: UseWebRTCProps) => {
       let pc = peerConnectionsRef.current.get(fromId);
       
       if (!pc) {
-        pc = createPeerConnection(
-          (candidate) => {
-            if (candidate) {
-              socket.emit("ice-candidate", { targetId: fromId, candidate });
-            }
-          },
-          (event) => {
-            const stream = event.streams[0];
-            setRemoteStreams((prev) => new Map(prev).set(fromId, stream));
-          }
-        );
-
-        peerConnectionsRef.current.set(fromId, pc);
+        pc = makePeerConnection(fromId, socket);
 
         if (localStreamRef.current) {
           localStreamRef.current.getTracks().forEach((track) => {
@@ -140,6 +192,11 @@ export const useWebRTC = ({ roomId }: UseWebRTCProps) => {
     });
 
     socket.on("user-left", (userId: string) => {
+      const timer = iceRestartTimersRef.current.get(userId);
+      if (timer) {
+        clearTimeout(timer);
+        iceRestartTimersRef.current.delete(userId);
+      }
       const pc = peerConnectionsRef.current.get(userId);
       if (pc) {
         pc.close();
@@ -154,10 +211,12 @@ export const useWebRTC = ({ roomId }: UseWebRTCProps) => {
 
     return () => {
       socket.disconnect();
+      iceRestartTimersRef.current.forEach((timer) => clearTimeout(timer));
+      iceRestartTimersRef.current.clear();
       peerConnections.forEach((pc) => pc.close());
       peerConnections.clear();
     };
-  }, [roomId]);
+  }, [roomId, makePeerConnection]);
 
   const startLocalStream = async () => {
     try {
@@ -220,6 +279,8 @@ export const useWebRTC = ({ roomId }: UseWebRTCProps) => {
 
   const startRtmp = (rtmpUrl: string) => {
     if (socketRef.current) {
+      setRtmpStatus("connecting");
+      setRtmpError(null);
       socketRef.current.emit("start-rtmp", { rtmpUrl });
     }
   };
@@ -228,6 +289,7 @@ export const useWebRTC = ({ roomId }: UseWebRTCProps) => {
     if (socketRef.current) {
       socketRef.current.emit("stop-rtmp");
     }
+    setRtmpStatus("idle");
   };
 
   const sendRtmpChunk = (chunk: Blob) => {
@@ -236,29 +298,13 @@ export const useWebRTC = ({ roomId }: UseWebRTCProps) => {
     }
   };
 
-  // Listen for RTMP events from server
-  useEffect(() => {
-    if (!socketRef.current) return;
-    
-    const handleRtmpError = (err: string) => {
-      console.error("RTMP Error:", err);
-      alert(`RTMP Streaming Error: ${err}`);
-    };
-
-    socketRef.current.on("rtmp-error", handleRtmpError);
-
-    return () => {
-      if (socketRef.current) {
-        socketRef.current.off("rtmp-error", handleRtmpError);
-      }
-    };
-  }, [isConnected]);
-
   return {
     localStreamRef,
     remoteStreams,
     isConnected,
     connectionError,
+    rtmpStatus,
+    rtmpError,
     startLocalStream,
     stopLocalStream,
     publishLocalStream,

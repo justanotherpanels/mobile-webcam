@@ -85,6 +85,8 @@ io.on("connection", (socket) => {
     }
 
     const ffmpegArgs = [
+      '-fflags', 'nobuffer',
+      '-flags', 'low_delay',
       '-i', '-', // Input from stdin
       '-c:v', 'libx264',
       '-preset', 'veryfast',

@@ -1,17 +1,23 @@
 "use client";
 
-import React from 'react';
-import { useParams } from 'next/navigation';
+import React, { Suspense } from 'react';
+import { useParams, useSearchParams } from 'next/navigation';
 import { useWebRTC } from '@/hooks/useWebRTC';
 import { Users } from 'lucide-react';
 
-export default function OBSView() {
+function OBSViewContent() {
   const params = useParams();
+  const searchParams = useSearchParams();
   const roomId = params.roomId as string;
+
+  const clean = searchParams.get('clean') === '1' || searchParams.get('scene') === '0';
+  const fitParam = searchParams.get('fit');
+  const objectFit = fitParam === 'contain' ? 'object-contain' : 'object-cover';
   
   const { remoteStreams, isConnected, connectionError } = useWebRTC({ roomId });
 
   const remoteEntries = Array.from(remoteStreams.entries());
+  const showWaitingOverlay = remoteEntries.length === 0 && !clean;
 
   return (
     <>
@@ -21,11 +27,9 @@ export default function OBSView() {
         `}
       </style>
 
-      {/* Kontainer Utama - Transparan untuk OBS */}
       <div className="relative w-full h-[100dvh] bg-transparent overflow-hidden flex flex-col text-white">
         
-        {/* Pesan saat kosong */}
-        {remoteEntries.length === 0 && (
+        {showWaitingOverlay && (
           <div className="absolute inset-0 flex flex-col items-center justify-center text-gray-500 bg-black/40 backdrop-blur-sm">
             <Users size={48} className="mb-4 opacity-50" />
             <p>Menunggu kamera (Room: {roomId})</p>
@@ -35,20 +39,18 @@ export default function OBSView() {
           </div>
         )}
 
-        {/* Video Grid untuk OBS */}
         <div className="relative w-full h-full flex items-center justify-center bg-transparent">
-          <div className={`w-full h-full grid ${
-            remoteEntries.length === 0 ? 'hidden' : 
-            remoteEntries.length === 1 ? 'grid-cols-1' : 
-            remoteEntries.length <= 4 ? 'grid-cols-2' : 
-            'grid-cols-3'
+          <div className={`w-full h-full ${
+            remoteEntries.length === 0 ? 'hidden' :
+            remoteEntries.length === 1 ? 'flex items-center justify-center' :
+            `grid ${remoteEntries.length <= 4 ? 'grid-cols-2' : 'grid-cols-3'}`
           }`}>
             {remoteEntries.map(([userId, userStream]) => (
               <div key={userId} className="relative w-full h-full">
                 <video 
                   autoPlay 
                   playsInline
-                  className="w-full h-full object-cover"
+                  className={`w-full h-full ${objectFit}`}
                   ref={(el) => {
                     if (el) el.srcObject = userStream;
                   }}
@@ -60,5 +62,13 @@ export default function OBSView() {
 
       </div>
     </>
+  );
+}
+
+export default function OBSView() {
+  return (
+    <Suspense fallback={<div className="w-full h-[100dvh] bg-transparent" />}>
+      <OBSViewContent />
+    </Suspense>
   );
 }

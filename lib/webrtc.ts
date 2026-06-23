@@ -39,7 +39,8 @@ export const getIceServers = (): RTCIceServer[] => {
 
 export const createPeerConnection = (
   onIceCandidate: (candidate: RTCIceCandidate | null) => void,
-  onTrack: (event: RTCTrackEvent) => void
+  onTrack: (event: RTCTrackEvent) => void,
+  onIceConnectionStateChange?: (state: RTCIceConnectionState) => void
 ): RTCPeerConnection => {
   const pc = new RTCPeerConnection({ iceServers: getIceServers() });
 
@@ -49,6 +50,10 @@ export const createPeerConnection = (
 
   pc.ontrack = (event) => {
     onTrack(event);
+  };
+
+  pc.oniceconnectionstatechange = () => {
+    onIceConnectionStateChange?.(pc.iceConnectionState);
   };
 
   return pc;

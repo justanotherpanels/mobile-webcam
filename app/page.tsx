@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { useWebRTC } from '@/hooks/useWebRTC';
+import { getRtmpRecorderOptions } from '@/lib/media';
 import { 
   Mic, 
   MicOff, 
@@ -30,6 +31,8 @@ export default function Home() {
     startRtmp,
     stopRtmp,
     sendRtmpChunk,
+    rtmpStatus,
+    rtmpError,
   } = useWebRTC({ roomId: roomId || '' });
 
   const [stream, setStream] = useState<MediaStream | null>(null);
@@ -42,6 +45,16 @@ export default function Home() {
   const [isVideoOff, setIsVideoOff] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
   const [showShareMenu, setShowShareMenu] = useState(false);
+
+  useEffect(() => {
+    if (rtmpStatus === 'error') {
+      if (mediaRecorderRef.current) {
+        mediaRecorderRef.current.stop();
+        mediaRecorderRef.current = null;
+      }
+      setIsStreaming(false);
+    }
+  }, [rtmpStatus]);
 
   useEffect(() => {
     const existing = new URLSearchParams(window.location.search).get('room');
@@ -142,7 +155,7 @@ export default function Home() {
 
   const copyOBSLink = () => {
     if (roomId) {
-      const link = `${window.location.origin}/view/${roomId}`;
+      const link = `${window.location.origin}/view/${roomId}?clean=1&fit=contain`;
       navigator.clipboard.writeText(link);
       setCopied('OBS View link copied!');
     }
@@ -151,24 +164,28 @@ export default function Home() {
   const handleStartStreaming = () => {
     if (!rtmpUrl) return alert("RTMP URL is required");
     if (!stream) return alert("Camera not started");
-    
-    startRtmp(rtmpUrl);
-    
-    // Try h264 first for better FFmpeg compatibility, fallback to vp8/default
-    let options = { mimeType: 'video/webm;codecs=h264' };
-    if (!MediaRecorder.isTypeSupported('video/webm;codecs=h264')) {
-      options = { mimeType: 'video/webm;codecs=vp8' };
+
+    const recorderOptions = getRtmpRecorderOptions();
+    if (!recorderOptions.supported) {
+      alert(
+        "Browser Anda tidak mendukung RTMP recording. Gunakan Chrome/Android. Safari/iOS tidak didukung."
+      );
+      return;
     }
-    
-    const mediaRecorder = new MediaRecorder(stream, options);
-    
+
+    startRtmp(rtmpUrl);
+
+    const mediaRecorder = new MediaRecorder(stream, {
+      mimeType: recorderOptions.mimeType,
+    });
+
     mediaRecorder.ondataavailable = (event) => {
       if (event.data.size > 0) {
         sendRtmpChunk(event.data);
       }
     };
-    
-    mediaRecorder.start(1000); // Send chunk every second
+
+    mediaRecorder.start(200);
     mediaRecorderRef.current = mediaRecorder;
     setIsStreaming(true);
     setShowRtmpModal(false);
@@ -275,6 +292,12 @@ export default function Home() {
       {/* Kontainer Utama - Ukuran Layar Penuh */}
       <div className="relative w-full h-[100dvh] bg-[#111] overflow-hidden flex flex-col text-white">
         
+        {rtmpError && (
+          <div className="absolute top-36 left-1/2 -translate-x-1/2 z-50 text-center p-4 text-sm text-red-400 bg-black/90 rounded-xl max-w-[90%] border border-red-500/30">
+            <p>RTMP Error: {rtmpError}</p>
+          </div>
+        )}
+
         {/* Pesan Error */}
         {errorMsg && (
           <div className="absolute top-24 left-1/2 -translate-x-1/2 z-50 text-center p-4 text-sm text-red-400 bg-black/90 rounded-xl max-w-[90%] border border-red-500/30">
@@ -294,6 +317,16 @@ export default function Home() {
             <div className="flex items-center gap-2">
               <Share2 size={14} className="text-purple-400" />
               <span className="text-xs sm:text-sm font-medium tracking-wide text-white/90">Room: {roomId}</span>
+              {isStreaming && (
+                <span className={`text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full ${
+                  rtmpStatus === 'streaming' ? 'bg-red-500/80 text-white animate-pulse' :
+                  rtmpStatus === 'connecting' ? 'bg-amber-500/80 text-black' :
+                  rtmpStatus === 'error' ? 'bg-red-900/80 text-white' :
+                  'bg-white/20 text-white'
+                }`}>
+                  RTMP: {rtmpStatus}
+                </span>
+              )}
             </div>
             {/* Camera switch on mobile */}
             <button 
@@ -520,6 +553,11 @@ export default function Home() {
               <p className="text-sm text-gray-400 mb-4">
                 Stream your camera directly to YouTube, Twitch, atau custom RTMP server.
               </p>
+              {!getRtmpRecorderOptions().supported && (
+                <p className="text-sm text-amber-400 mb-4 bg-amber-500/10 border border-amber-500/30 rounded-lg p-3">
+                  Browser ini tidak mendukung MediaRecorder untuk RTMP. Gunakan Chrome di Android/Desktop.
+                </p>
+              )}
               <div className="space-y-4">
                 <div>
                   <label className="block text-xs font-medium text-gray-400 mb-1">RTMP URL (dengan Stream Key)</label>
@@ -540,7 +578,8 @@ export default function Home() {
                   </button>
                   <button 
                     onClick={handleStartStreaming}
-                    className="flex-1 px-4 py-2.5 rounded-lg bg-red-600 text-white hover:bg-red-700 transition font-medium flex items-center justify-center gap-2 cursor-pointer"
+                    disabled={!getRtmpRecorderOptions().supported}
+                    className="flex-1 px-4 py-2.5 rounded-lg bg-red-600 text-white hover:bg-red-700 transition font-medium flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     <Radio size={16} /> Go Live
                   </button>
