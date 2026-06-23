@@ -26,8 +26,8 @@ export const useWebRTC = ({ roomId }: UseWebRTCProps) => {
     // Always start with polling, then upgrade to WebSocket. 
     // Railway proxy drops direct WebSocket handshakes without HTTP first.
     const socket = io(socketUrl, {
-      transports: ["polling", "websocket"],
-      upgrade: true,
+      transports: ["websocket"],
+      upgrade: false,
       reconnection: true,
       reconnectionDelay: 1000,
       reconnectionAttempts: 10,
