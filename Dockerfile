@@ -15,4 +15,4 @@ COPY server.js ./
 
 EXPOSE 3001
 
-CMD ["npm", "run", "server"]
+CMD ["node", "server.js"]
