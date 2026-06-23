@@ -13,8 +13,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "VDO.Ninja - Peer-to-Peer Video Conferencing",
-  description: "Free, secure, and powerful peer-to-peer video conferencing",
+  title: "StreamCam - IRL Broadcast Camera Mobile",
+  description: "IRL Broadcast Camera Mobile",
 };
 
 export default function RootLayout({
