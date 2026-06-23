@@ -41,6 +41,7 @@ export default function Home() {
   const [isAudioMuted, setIsAudioMuted] = useState(false);
   const [isVideoOff, setIsVideoOff] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
+  const [showShareMenu, setShowShareMenu] = useState(false);
 
   useEffect(() => {
     const existing = new URLSearchParams(window.location.search).get('room');
@@ -303,40 +304,7 @@ export default function Home() {
             </button>
           </div>
           
-          <div className="flex gap-2 w-full sm:w-auto mt-2 sm:mt-0">
-            <button
-              onClick={copyRoomLink}
-              className="flex-1 sm:flex-none bg-black/60 backdrop-blur-md py-2 sm:px-4 sm:py-2 rounded-xl text-white hover:bg-black/80 transition cursor-pointer border border-white/10 flex justify-center"
-              title="Copy Room Link"
-            >
-              <div className="flex items-center gap-2 text-xs sm:text-sm">
-                <Share2 size={14} />
-                <span className="hidden xl:inline">Room Link</span>
-                <span className="xl:hidden">Room</span>
-              </div>
-            </button>
-            <button
-              onClick={copyCameraLink}
-              className="flex-1 sm:flex-none bg-purple-600 hover:bg-purple-700 py-2 sm:px-4 sm:py-2 rounded-xl text-white transition cursor-pointer border border-purple-500/50 flex justify-center"
-              title="Copy Camera Link"
-            >
-              <div className="flex items-center gap-2 text-xs sm:text-sm">
-                <Copy size={14} />
-                <span className="hidden xl:inline">Camera Link</span>
-                <span className="xl:hidden">Camera</span>
-              </div>
-            </button>
-            <button
-              onClick={copyOBSLink}
-              className="flex-1 sm:flex-none bg-indigo-600 hover:bg-indigo-700 py-2 sm:px-4 sm:py-2 rounded-xl text-white transition cursor-pointer border border-indigo-500/50 flex justify-center"
-              title="Copy OBS Link"
-            >
-              <div className="flex items-center gap-2 text-xs sm:text-sm">
-                <Copy size={14} />
-                <span className="hidden xl:inline">OBS Link</span>
-                <span className="xl:hidden">OBS</span>
-              </div>
-            </button>
+          <div className="flex gap-2 w-full sm:w-auto mt-2 sm:mt-0 justify-end">
             <button 
               onClick={switchCamera}
               className="hidden sm:block p-2.5 bg-zinc-800/60 rounded-full backdrop-blur-md active:scale-95 transition-transform cursor-pointer border border-white/10"
@@ -495,10 +463,42 @@ export default function Home() {
               <Radio size={22} />
             </button>
 
-            {/* Tombol Menu Lainnya */}
-            <button className="w-12 h-12 rounded-full bg-white/15 flex items-center justify-center active:scale-95 transition-transform text-white hover:bg-white/20 cursor-pointer">
-              <MoreVertical size={22} />
-            </button>
+            {/* Tombol Menu Lainnya (Share) */}
+            <div className="relative">
+              <button 
+                onClick={() => setShowShareMenu(!showShareMenu)}
+                className={`w-12 h-12 rounded-full flex items-center justify-center active:scale-95 transition-transform cursor-pointer ${showShareMenu ? 'bg-white text-black' : 'bg-white/15 text-white hover:bg-white/20'}`}
+              >
+                <Share2 size={22} />
+              </button>
+              
+              {/* Share Menu Popup */}
+              {showShareMenu && (
+                <div className="absolute bottom-[120%] right-0 mb-2 bg-zinc-800/95 backdrop-blur-xl border border-white/10 rounded-2xl p-2 w-48 flex flex-col gap-1.5 shadow-2xl animate-in slide-in-from-bottom-2 fade-in duration-200">
+                  <button
+                    onClick={() => { copyRoomLink(); setShowShareMenu(false); }}
+                    className="flex items-center gap-3 w-full p-3 rounded-xl hover:bg-white/10 transition-colors text-sm font-medium text-white cursor-pointer"
+                  >
+                    <Share2 size={16} />
+                    Room Link
+                  </button>
+                  <button
+                    onClick={() => { copyCameraLink(); setShowShareMenu(false); }}
+                    className="flex items-center gap-3 w-full p-3 rounded-xl hover:bg-purple-500/20 transition-colors text-sm font-medium text-purple-400 cursor-pointer"
+                  >
+                    <Copy size={16} />
+                    Camera Link
+                  </button>
+                  <button
+                    onClick={() => { copyOBSLink(); setShowShareMenu(false); }}
+                    className="flex items-center gap-3 w-full p-3 rounded-xl hover:bg-indigo-500/20 transition-colors text-sm font-medium text-indigo-400 cursor-pointer"
+                  >
+                    <Copy size={16} />
+                    OBS Link
+                  </button>
+                </div>
+              )}
+            </div>
 
           </div>
         </div>
