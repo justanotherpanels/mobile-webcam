@@ -17,7 +17,14 @@ export const useWebRTC = ({ roomId }: UseWebRTCProps) => {
     if (!roomId) return;
 
     const socketUrl = process.env.NEXT_PUBLIC_SOCKET_URL || "http://localhost:3001";
-    const socket = io(socketUrl);
+    // Force WebSocket-only transport - Railway proxy cuts off long-polling (HTTP) after 31s
+    const socket = io(socketUrl, {
+      transports: ["websocket"],
+      upgrade: false,
+      reconnection: true,
+      reconnectionDelay: 1000,
+      reconnectionAttempts: 10,
+    });
     socketRef.current = socket;
 
     socket.on("connect", () => {
