@@ -1,23 +1,24 @@
 require("dotenv").config();
-const express = require("express");
 const http = require("http");
 const { Server } = require("socket.io");
-const cors = require("cors");
 
-const app = express();
-app.use(cors({
-  origin: '*'
-}));
-
-// Health check endpoint — Railway pings this to confirm the app is alive
-app.get("/", (req, res) => {
-  res.json({ status: "ok", uptime: process.uptime() });
+const server = http.createServer((req, res) => {
+  // Simple health check endpoint for Railway
+  if (req.url === "/" || req.url === "/health") {
+    res.writeHead(200, { "Content-Type": "application/json" });
+    res.end(JSON.stringify({ status: "ok", uptime: process.uptime() }));
+    return;
+  }
+  
+  // Basic CORS headers for preflight requests if needed manually
+  res.setHeader("Access-Control-Allow-Origin", "*");
+  res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+  if (req.method === "OPTIONS") {
+    res.writeHead(204);
+    res.end();
+    return;
+  }
 });
-app.get("/health", (req, res) => {
-  res.json({ status: "ok", uptime: process.uptime() });
-});
-
-const server = http.createServer(app);
 
 const io = new Server(server, {
   cors: {
@@ -163,6 +164,6 @@ io.on("connection", (socket) => {
 });
 
 const PORT = process.env.PORT || 8080;
-server.listen(PORT, '0.0.0.0', () => {
+server.listen(PORT, "0.0.0.0", () => {
   console.log(`Signaling server running on port ${PORT}`);
 });
