@@ -32,6 +32,7 @@ export const useWebRTC = ({ roomId }: UseWebRTCProps) => {
       reconnectionDelay: 1000,
       reconnectionAttempts: 10,
       timeout: 20000,
+      withCredentials: true,
     });
     socketRef.current = socket;
     const peerConnections = peerConnectionsRef.current;
@@ -70,6 +71,10 @@ export const useWebRTC = ({ roomId }: UseWebRTCProps) => {
         localStreamRef.current.getTracks().forEach((track) => {
           pc.addTrack(track, localStreamRef.current!);
         });
+      } else {
+        // If we don't have a local stream, explicitly tell the other peer we want to receive
+        pc.addTransceiver('video', { direction: 'recvonly' });
+        pc.addTransceiver('audio', { direction: 'recvonly' });
       }
 
       const offer = await pc.createOffer();
@@ -78,24 +83,31 @@ export const useWebRTC = ({ roomId }: UseWebRTCProps) => {
     });
 
     socket.on("offer", async ({ offer, fromId }: { offer: RTCSessionDescriptionInit; fromId: string }) => {
-      const pc = createPeerConnection(
-        (candidate) => {
-          if (candidate) {
-            socket.emit("ice-candidate", { targetId: fromId, candidate });
+      let pc = peerConnectionsRef.current.get(fromId);
+      
+      if (!pc) {
+        pc = createPeerConnection(
+          (candidate) => {
+            if (candidate) {
+              socket.emit("ice-candidate", { targetId: fromId, candidate });
+            }
+          },
+          (event) => {
+            const stream = event.streams[0];
+            setRemoteStreams((prev) => new Map(prev).set(fromId, stream));
           }
-        },
-        (event) => {
-          const stream = event.streams[0];
-          setRemoteStreams((prev) => new Map(prev).set(fromId, stream));
+        );
+
+        peerConnectionsRef.current.set(fromId, pc);
+
+        if (localStreamRef.current) {
+          localStreamRef.current.getTracks().forEach((track) => {
+            pc!.addTrack(track, localStreamRef.current!);
+          });
+        } else {
+          pc.addTransceiver('video', { direction: 'recvonly' });
+          pc.addTransceiver('audio', { direction: 'recvonly' });
         }
-      );
-
-      peerConnectionsRef.current.set(fromId, pc);
-
-      if (localStreamRef.current) {
-        localStreamRef.current.getTracks().forEach((track) => {
-          pc.addTrack(track, localStreamRef.current!);
-        });
       }
 
       await pc.setRemoteDescription(new RTCSessionDescription(offer));

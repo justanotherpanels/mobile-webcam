@@ -5,7 +5,12 @@ const { Server } = require("socket.io");
 const cors = require("cors");
 
 const app = express();
-app.use(cors());
+app.use(cors({
+  origin: function(origin, callback){
+    return callback(null, true);
+  },
+  credentials: true
+}));
 
 // Health check endpoint — Railway pings this to confirm the app is alive
 app.get("/", (req, res) => {
@@ -17,11 +22,13 @@ app.get("/health", (req, res) => {
 
 const server = http.createServer(app);
 
-// Socket.IO with explicit WebSocket + polling support
 const io = new Server(server, {
   cors: {
-    origin: "*",
-    methods: ["GET", "POST"],
+    origin: (origin, callback) => {
+      callback(null, true);
+    },
+    methods: ["GET", "POST", "OPTIONS"],
+    credentials: true,
   },
   transports: ["websocket", "polling"],
   allowUpgrades: true,
@@ -32,7 +39,7 @@ const io = new Server(server, {
 
 // Debug log
 console.log("Server starting...");
-console.log("Allowed Origin:", process.env.ALLOWED_ORIGIN || "All origins allowed");
+console.log("Allowed Origin: dynamically allowed");
 
 const rooms = new Map();
 
