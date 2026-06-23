@@ -53,33 +53,43 @@ export const useWebRTC = ({ roomId }: UseWebRTCProps) => {
     });
 
     socket.on("user-joined", async (userId: string) => {
-      const pc = createPeerConnection(
-        (candidate) => {
-          if (candidate) {
-            socket.emit("ice-candidate", { targetId: userId, candidate });
+      // Prevent glare by deciding who initiates the offer
+      const isInitiator = socket.id > userId;
+
+      let pc = peerConnectionsRef.current.get(userId);
+      if (!pc) {
+        pc = createPeerConnection(
+          (candidate) => {
+            if (candidate) {
+              socket.emit("ice-candidate", { targetId: userId, candidate });
+            }
+          },
+          (event) => {
+            const stream = event.streams[0];
+            setRemoteStreams((prev) => new Map(prev).set(userId, stream));
           }
-        },
-        (event) => {
-          const stream = event.streams[0];
-          setRemoteStreams((prev) => new Map(prev).set(userId, stream));
-        }
-      );
-
-      peerConnectionsRef.current.set(userId, pc);
-
-      if (localStreamRef.current) {
-        localStreamRef.current.getTracks().forEach((track) => {
-          pc.addTrack(track, localStreamRef.current!);
-        });
-      } else {
-        // If we don't have a local stream, explicitly tell the other peer we want to receive
-        pc.addTransceiver('video', { direction: 'recvonly' });
-        pc.addTransceiver('audio', { direction: 'recvonly' });
+        );
+        peerConnectionsRef.current.set(userId, pc);
       }
 
-      const offer = await pc.createOffer();
-      await pc.setLocalDescription(offer);
-      socket.emit("offer", { targetId: userId, offer });
+      if (isInitiator) {
+        if (localStreamRef.current) {
+          localStreamRef.current.getTracks().forEach((track) => {
+            pc!.addTrack(track, localStreamRef.current!);
+          });
+        } else {
+          pc!.addTransceiver('video', { direction: 'recvonly' });
+          pc!.addTransceiver('audio', { direction: 'recvonly' });
+        }
+
+        try {
+          const offer = await pc!.createOffer();
+          await pc!.setLocalDescription(offer);
+          socket.emit("offer", { targetId: userId, offer });
+        } catch (e) {
+          console.error("Error creating offer:", e);
+        }
+      }
     });
 
     socket.on("offer", async ({ offer, fromId }: { offer: RTCSessionDescriptionInit; fromId: string }) => {
