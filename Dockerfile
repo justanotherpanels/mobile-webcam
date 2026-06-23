@@ -13,7 +13,4 @@ RUN npm ci --omit=dev
 # Copy source code
 COPY server.js ./
 
-ENV PORT=3001
-EXPOSE 3001
-
 CMD ["node", "server.js"]
