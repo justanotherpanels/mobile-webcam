@@ -9,12 +9,11 @@ app.use(cors());
 
 const server = http.createServer(app);
 
-// CORS: Allow all origins in development, or specific origin in production
+// CORS: Allow all origins to prevent CORS issues
 const io = new Server(server, {
   cors: {
-    origin: process.env.ALLOWED_ORIGIN || true, // Allow all if no origin set
-    methods: ["GET", "POST"],
-    credentials: true,
+    origin: "*",
+    methods: ["GET", "POST"]
   },
 });
 

@@ -12,7 +12,6 @@ RUN npm ci --omit=dev
 
 # Copy source code
 COPY server.js ./
-COPY .env* ./
 
 EXPOSE 3001
 
