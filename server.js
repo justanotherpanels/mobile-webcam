@@ -6,9 +6,7 @@ const cors = require("cors");
 
 const app = express();
 app.use(cors({
-  origin: function(origin, callback){
-    return callback(null, true);
-  },
+  origin: true,
   credentials: true
 }));
 
@@ -24,9 +22,7 @@ const server = http.createServer(app);
 
 const io = new Server(server, {
   cors: {
-    origin: (origin, callback) => {
-      callback(null, true);
-    },
+    origin: true,
     methods: ["GET", "POST", "OPTIONS"],
     credentials: true,
   },
