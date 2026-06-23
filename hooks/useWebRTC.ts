@@ -12,12 +12,16 @@ export const useWebRTC = ({ roomId }: UseWebRTCProps) => {
   const localStreamRef = useRef<MediaStream | null>(null);
   const [remoteStreams, setRemoteStreams] = useState<Map<string, MediaStream>>(new Map());
   const [isConnected, setIsConnected] = useState(false);
+  const [connectionError, setConnectionError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!roomId) return;
 
-    // Hardcode Railway backend URL to guarantee it connects to the right server
-    const socketUrl = "https://mobile-webcam-production.up.railway.app";
+    const socketUrl =
+      process.env.NEXT_PUBLIC_SOCKET_URL ||
+      (window.location.hostname === "localhost"
+        ? "http://localhost:3001"
+        : "https://mobile-webcam-production.up.railway.app");
     
     // Always start with polling, then upgrade to WebSocket. 
     // Railway proxy drops direct WebSocket handshakes without HTTP first.
@@ -30,14 +34,21 @@ export const useWebRTC = ({ roomId }: UseWebRTCProps) => {
       timeout: 20000,
     });
     socketRef.current = socket;
+    const peerConnections = peerConnectionsRef.current;
 
     socket.on("connect", () => {
       setIsConnected(true);
+      setConnectionError(null);
       socket.emit("join-room", roomId);
     });
 
     socket.on("disconnect", () => {
       setIsConnected(false);
+    });
+
+    socket.on("connect_error", (error) => {
+      setIsConnected(false);
+      setConnectionError(error.message || "Gagal terhubung ke signaling server");
     });
 
     socket.on("user-joined", async (userId: string) => {
@@ -122,8 +133,8 @@ export const useWebRTC = ({ roomId }: UseWebRTCProps) => {
 
     return () => {
       socket.disconnect();
-      peerConnectionsRef.current.forEach((pc) => pc.close());
-      peerConnectionsRef.current.clear();
+      peerConnections.forEach((pc) => pc.close());
+      peerConnections.clear();
     };
   }, [roomId]);
 
@@ -145,6 +156,26 @@ export const useWebRTC = ({ roomId }: UseWebRTCProps) => {
     if (localStreamRef.current) {
       localStreamRef.current.getTracks().forEach((track) => track.stop());
       localStreamRef.current = null;
+    }
+  };
+
+  const publishLocalStream = async (stream: MediaStream) => {
+    localStreamRef.current = stream;
+
+    for (const [userId, pc] of peerConnectionsRef.current.entries()) {
+      pc.getSenders().forEach((sender) => {
+        if (sender.track) {
+          pc.removeTrack(sender);
+        }
+      });
+
+      stream.getTracks().forEach((track) => {
+        pc.addTrack(track, stream);
+      });
+
+      const offer = await pc.createOffer();
+      await pc.setLocalDescription(offer);
+      socketRef.current?.emit("offer", { targetId: userId, offer });
     }
   };
 
@@ -206,8 +237,10 @@ export const useWebRTC = ({ roomId }: UseWebRTCProps) => {
     localStreamRef,
     remoteStreams,
     isConnected,
+    connectionError,
     startLocalStream,
     stopLocalStream,
+    publishLocalStream,
     toggleVideo,
     toggleAudio,
     startRtmp,

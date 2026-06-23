@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams } from 'next/navigation';
+import { useWebRTC } from '@/hooks/useWebRTC';
 import { 
   Mic, 
   MicOff, 
@@ -14,7 +15,8 @@ import {
 
 export default function App() {
   const params = useParams();
-  const roomId = params.roomId;
+  const roomId = params.roomId as string;
+  const { publishLocalStream, stopLocalStream, connectionError } = useWebRTC({ roomId });
   
   const videoRef = useRef<HTMLVideoElement>(null);
   const [stream, setStream] = useState<MediaStream | null>(null);
@@ -42,26 +44,41 @@ export default function App() {
 
       const mediaStream = await navigator.mediaDevices.getUserMedia(constraints);
       setStream(mediaStream);
+      await publishLocalStream(mediaStream);
       setErrorMsg('');
       
       if (videoRef.current) {
         videoRef.current.srcObject = mediaStream;
       }
+      return mediaStream;
     } catch (err) {
       console.error("Gagal mengakses kamera/mic:", err);
       setErrorMsg('Gagal mengakses perangkat. Pastikan izin kamera dan mikrofon diberikan.');
+      return null;
     }
   };
 
   // Jalankan saat komponen dimuat atau facingMode berubah
   useEffect(() => {
-    startCamera(facingMode);
+    let active = true;
+    let activeStream: MediaStream | null = null;
+
+    const openCamera = async () => {
+      const mediaStream = await startCamera(facingMode);
+      if (!active) {
+        mediaStream?.getTracks().forEach(track => track.stop());
+        return;
+      }
+      activeStream = mediaStream;
+    };
+
+    openCamera();
     
     // Cleanup saat komponen dibongkar
     return () => {
-      if (stream) {
-        stream.getTracks().forEach(track => track.stop());
-      }
+      active = false;
+      activeStream?.getTracks().forEach(track => track.stop());
+      stopLocalStream();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [facingMode]);
@@ -113,6 +130,12 @@ export default function App() {
             >
               Coba Lagi
             </button>
+          </div>
+        )}
+
+        {connectionError && (
+          <div className="absolute top-44 left-1/2 -translate-x-1/2 z-50 text-center p-4 text-sm text-amber-300 bg-black/90 rounded-xl max-w-[90%] border border-amber-500/30">
+            <p>Gagal terhubung ke server: {connectionError}</p>
           </div>
         )}
 

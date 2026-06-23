@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { useParams } from 'next/navigation';
 import { useWebRTC } from '@/hooks/useWebRTC';
 import { Users } from 'lucide-react';
@@ -9,23 +9,7 @@ export default function OBSView() {
   const params = useParams();
   const roomId = params.roomId as string;
   
-  const { remoteStreams, isConnected } = useWebRTC({ roomId });
-
-  const [hasStarted, setHasStarted] = useState(false);
-
-  // In OBS, we might need a user interaction to play audio, but we can try to autoplay
-  useEffect(() => {
-    // Auto-join without camera
-    setHasStarted(true);
-  }, []);
-
-  if (!hasStarted) {
-    return (
-      <div className="min-h-screen bg-transparent flex items-center justify-center">
-        <div className="text-white">Starting viewer...</div>
-      </div>
-    );
-  }
+  const { remoteStreams, isConnected, connectionError } = useWebRTC({ roomId });
 
   const remoteEntries = Array.from(remoteStreams.entries());
 
@@ -45,7 +29,9 @@ export default function OBSView() {
           <div className="absolute inset-0 flex flex-col items-center justify-center text-gray-500 bg-black/40 backdrop-blur-sm">
             <Users size={48} className="mb-4 opacity-50" />
             <p>Menunggu kamera (Room: {roomId})</p>
-            <p className="text-xs mt-2 text-gray-600">{isConnected ? "Terhubung ke server" : "Menghubungkan..."}</p>
+            <p className="text-xs mt-2 text-gray-600">
+              {connectionError ? `Gagal terhubung: ${connectionError}` : isConnected ? "Terhubung ke server" : "Menghubungkan..."}
+            </p>
           </div>
         )}
 

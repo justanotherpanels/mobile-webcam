@@ -22,10 +22,9 @@ export default function Home() {
   const [copied, setCopied] = useState<string | null>(null);
   
   const {
-    localStreamRef,
     remoteStreams,
-    startLocalStream,
     stopLocalStream,
+    publishLocalStream,
     toggleVideo: toggleVideoWebRTC,
     toggleAudio: toggleAudioWebRTC,
     startRtmp,
@@ -46,6 +45,7 @@ export default function Home() {
   useEffect(() => {
     const existing = new URLSearchParams(window.location.search).get('room');
     const newRoomId = existing || Math.random().toString(36).substring(2, 10);
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setRoomId(newRoomId);
   }, []);
 
@@ -75,7 +75,7 @@ export default function Home() {
 
       const mediaStream = await navigator.mediaDevices.getUserMedia(constraints);
       setStream(mediaStream);
-      localStreamRef.current = mediaStream;
+      await publishLocalStream(mediaStream);
       setErrorMsg('');
       setJoined(true);
     } catch (err) {
